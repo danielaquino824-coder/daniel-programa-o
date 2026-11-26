@@ -25,8 +25,11 @@ Tirado dos e-mails que o Daniel envia pelo Outlook:
   no `<style>` do `<head>` e também `margin:0cm` inline). O espaço entre parágrafos vem
   **só** de um parágrafo vazio (`&nbsp;`). Sem essa regra o leitor de e-mail aplica a margem
   padrão e o espaçamento fica dobrado.
-- **Texto justificado** nos e-mails longos e formais (ex.: clientes externos, como o da
-  Cora Imobiliária x Marquise); nos curtos/internos, alinhado à esquerda.
+- **Texto justificado em tudo** (parágrafos, tópicos e citações).
+- **Citações** (jurisprudência, artigo de lei, doutrina, trecho de contrato ou documento,
+  citações em geral): parágrafo próprio, **recuado 4 tabs** (`margin-left:141.6pt`),
+  justificado, mesma fonte e tamanho, com linha vazia antes e depois.
+  No script: `Citacao("...")`.
 - **Abertura com menção (arroba)**: `@Nome Sobrenome,` como link `mailto:` sem sublinhado.
   Quem é mencionado também entra como destinatário.
 - Para ser **menção de verdade** (e não só link), são necessárias duas coisas:

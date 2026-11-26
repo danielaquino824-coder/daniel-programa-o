@@ -1,12 +1,14 @@
 """Envio de e-mail pelo Microsoft Graph no padrão do Daniel.
 
 Uso como módulo:
-    from graph_email import enviar
+    from graph_email import enviar, Citacao
     enviar(
         para=[("Victor Morais", "victor.morais@raa.adv.br")],
         assunto="Assunto",
         mencoes=[("Victor Morais", "victor.morais@raa.adv.br")],
-        paragrafos=["Primeiro parágrafo.", "<b>Rótulo:</b> texto."],
+        paragrafos=["Primeiro parágrafo.", "<b>Rótulo:</b> texto.",
+                    Citacao("Art. 724. O corretor terá direito ..."),
+                    ["tópico 1", "tópico 2"]],
     )
 
 Credenciais: variáveis MS_GRAPH_CLIENT_ID, MS_GRAPH_TENANT_ID e
@@ -54,9 +56,17 @@ ESTILO = (
 )
 
 
-def _p(conteudo, justificado=False):
-    # margem zero também inline, para leitores que ignoram o <style>
-    estilo = "margin:0cm" + ("; text-align:justify" if justificado else "")
+RECUO_CITACAO = "141.6pt"  # 4 tabs do Outlook (4 x 35,4 pt)
+
+
+class Citacao(str):
+    """Trecho citado (jurisprudência, artigo de lei, doutrina, trecho de documento...).
+    Vai recuado 4 tabs, justificado, mesma fonte e tamanho."""
+
+
+def _p(conteudo, recuo=None):
+    # margem zero também inline, para leitores que ignoram o <style>; sempre justificado
+    estilo = (f"margin:0cm 0cm 0cm {recuo}" if recuo else "margin:0cm") + "; text-align:justify"
     return (f'<p class="MsoNormal" style="{estilo}"><span style="{FONTE}; font-size:11.0pt">'
             f'{conteudo}</span></p>')
 
@@ -72,11 +82,14 @@ def mencao(nome, email):
             f'@{html.escape(nome)}</span></a>')
 
 
-def corpo_html(paragrafos, mencoes=None, justificado=False):
-    """paragrafos: lista de strings (HTML permitido) ou listas (viram tópicos).
+def corpo_html(paragrafos, mencoes=None):
+    """paragrafos: lista de itens, cada um:
+      - str (HTML permitido): parágrafo normal;
+      - Citacao("..."): citação recuada 4 tabs;
+      - list/tuple de str: tópicos com marcador.
 
-    Padrão do Daniel: parágrafos sem margem, 11 pt, UMA linha vazia entre eles.
-    justificado=True para e-mails longos e formais (ex.: clientes externos).
+    Padrão do Daniel: tudo justificado, parágrafos sem margem, 11 pt,
+    UMA linha vazia entre eles.
     """
     partes = []
     if mencoes:
@@ -85,11 +98,13 @@ def corpo_html(paragrafos, mencoes=None, justificado=False):
         if isinstance(item, (list, tuple)):
             for li in item:
                 partes.append(f'<ul type="disc" style="margin-top:0cm; margin-bottom:0cm">'
-                              f'<li class="MsoListParagraph" style="margin:0cm">'
+                              f'<li class="MsoListParagraph" style="margin:0cm; text-align:justify">'
                               f'<span style="{FONTE}; font-size:11.0pt">{li}</span></li></ul>')
                 partes.append(_vazio())
+        elif isinstance(item, Citacao):
+            partes += [_p(item, RECUO_CITACAO), _vazio()]
         else:
-            partes += [_p(item, justificado), _vazio()]
+            partes += [_p(item), _vazio()]
     partes.append(_p("Atenciosamente,"))
     partes.append(_vazio())
     partes.append(f'<p class="MsoNormal" style="margin:0cm"><img border="0" width="589" height="196" '
@@ -99,14 +114,14 @@ def corpo_html(paragrafos, mencoes=None, justificado=False):
             + "".join(partes) + "</div></body></html>")
 
 
-def enviar(para, assunto, paragrafos, mencoes=None, cc=None, justificado=False):
+def enviar(para, assunto, paragrafos, mencoes=None, cc=None):
     def rec(lista):
         return [{"emailAddress": {"name": n, "address": e}} for n, e in (lista or [])]
     # quem é mencionado também entra como destinatário (igual ao Outlook)
     para = list(para) + [m for m in (mencoes or []) if m[1] not in {e for _, e in para}]
     msg = {
         "subject": assunto,
-        "body": {"contentType": "HTML", "content": corpo_html(paragrafos, mencoes, justificado)},
+        "body": {"contentType": "HTML", "content": corpo_html(paragrafos, mencoes)},
         "toRecipients": rec(para),
         "ccRecipients": rec(cc),
         "attachments": [{
