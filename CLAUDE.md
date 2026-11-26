@@ -20,7 +20,13 @@
 
 Tirado dos e-mails que o Daniel envia pelo Outlook:
 
-- Corpo em **HTML**, fonte **Century Gothic** em todo o texto.
+- Corpo em **HTML**, fonte **Century Gothic 11 pt** em todo o texto.
+- **Espaçamento (igual ao Outlook):** parágrafos com **margem zero** (`p.MsoNormal {margin:0cm}`
+  no `<style>` do `<head>` e também `margin:0cm` inline). O espaço entre parágrafos vem
+  **só** de um parágrafo vazio (`&nbsp;`). Sem essa regra o leitor de e-mail aplica a margem
+  padrão e o espaçamento fica dobrado.
+- **Texto justificado** nos e-mails longos e formais (ex.: clientes externos, como o da
+  Cora Imobiliária x Marquise); nos curtos/internos, alinhado à esquerda.
 - **Abertura com menção (arroba)**: `@Nome Sobrenome,` como link `mailto:` sem sublinhado.
   Quem é mencionado também entra como destinatário.
 - Para ser **menção de verdade** (e não só link), são necessárias duas coisas:
@@ -30,6 +36,7 @@ Tirado dos e-mails que o Daniel envia pelo Outlook:
 - No `style`, escrever a fonte com aspas simples (`font-family:'Century Gothic',sans-serif`);
   aspas duplas quebram o atributo e a fonte some.
 - **Uma linha em branco entre cada parágrafo** (inclusive após a menção e entre tópicos).
+  Exceção comum: saudação curta seguida direto da frase seguinte (ex.: "Prezados," / "Bom dia! Tudo bem?").
 - Frases curtas e diretas. Rótulos em negrito no início do parágrafo quando ajudam
   (ex.: **Tese:**, **Números:**, **Chance:**).
 - Listas com marcadores (•) para itens.

@@ -44,8 +44,21 @@ def call(method, path, body=None, tk=None):
     return r.status, (json.loads(b) if b else None)
 
 
-def _p(conteudo):
-    return f'<p class="MsoNormal"><span style="{FONTE}">{conteudo}</span></p>'
+ESTILO = (
+    "<style>"
+    "p.MsoNormal, li.MsoNormal, div.MsoNormal"
+    "{margin:0cm; font-size:11.0pt; font-family:'Century Gothic',sans-serif}"
+    "p.MsoListParagraph, li.MsoListParagraph"
+    "{margin:0cm 0cm 0cm 36.0pt; font-size:11.0pt; font-family:'Century Gothic',sans-serif}"
+    "</style>"
+)
+
+
+def _p(conteudo, justificado=False):
+    # margem zero também inline, para leitores que ignoram o <style>
+    estilo = "margin:0cm" + ("; text-align:justify" if justificado else "")
+    return (f'<p class="MsoNormal" style="{estilo}"><span style="{FONTE}; font-size:11.0pt">'
+            f'{conteudo}</span></p>')
 
 
 def _vazio():
@@ -59,35 +72,41 @@ def mencao(nome, email):
             f'@{html.escape(nome)}</span></a>')
 
 
-def corpo_html(paragrafos, mencoes=None):
-    """paragrafos: lista de strings (HTML permitido) ou listas (viram tópicos)."""
+def corpo_html(paragrafos, mencoes=None, justificado=False):
+    """paragrafos: lista de strings (HTML permitido) ou listas (viram tópicos).
+
+    Padrão do Daniel: parágrafos sem margem, 11 pt, UMA linha vazia entre eles.
+    justificado=True para e-mails longos e formais (ex.: clientes externos).
+    """
     partes = []
     if mencoes:
         partes += [_p(", ".join(mencao(n, e) for n, e in mencoes) + ","), _vazio()]
     for item in paragrafos:
         if isinstance(item, (list, tuple)):
             for li in item:
-                partes.append(f'<ul type="disc" style="margin-top:0cm"><li class="MsoListParagraph" '
-                              f'style="margin-left:0cm"><span style="{FONTE}">{li}</span></li></ul>')
+                partes.append(f'<ul type="disc" style="margin-top:0cm; margin-bottom:0cm">'
+                              f'<li class="MsoListParagraph" style="margin:0cm">'
+                              f'<span style="{FONTE}; font-size:11.0pt">{li}</span></li></ul>')
                 partes.append(_vazio())
         else:
-            partes += [_p(item), _vazio()]
+            partes += [_p(item, justificado), _vazio()]
     partes.append(_p("Atenciosamente,"))
     partes.append(_vazio())
-    partes.append(f'<p class="MsoNormal"><img border="0" width="589" height="196" '
+    partes.append(f'<p class="MsoNormal" style="margin:0cm"><img border="0" width="589" height="196" '
                   f'src="cid:{CID}" style="width:6.1354in; height:2.0416in"></p>')
-    return ('<html><body lang="PT-BR"><div class="WordSection1">' + "".join(partes)
-            + "</div></body></html>")
+    return ('<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8">'
+            + ESTILO + '</head><body lang="PT-BR"><div class="WordSection1">'
+            + "".join(partes) + "</div></body></html>")
 
 
-def enviar(para, assunto, paragrafos, mencoes=None, cc=None):
+def enviar(para, assunto, paragrafos, mencoes=None, cc=None, justificado=False):
     def rec(lista):
         return [{"emailAddress": {"name": n, "address": e}} for n, e in (lista or [])]
     # quem é mencionado também entra como destinatário (igual ao Outlook)
     para = list(para) + [m for m in (mencoes or []) if m[1] not in {e for _, e in para}]
     msg = {
         "subject": assunto,
-        "body": {"contentType": "HTML", "content": corpo_html(paragrafos, mencoes)},
+        "body": {"contentType": "HTML", "content": corpo_html(paragrafos, mencoes, justificado)},
         "toRecipients": rec(para),
         "ccRecipients": rec(cc),
         "attachments": [{
