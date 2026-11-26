@@ -23,6 +23,12 @@ Tirado dos e-mails que o Daniel envia pelo Outlook:
 - Corpo em **HTML**, fonte **Century Gothic** em todo o texto.
 - **Abertura com menção (arroba)**: `@Nome Sobrenome,` como link `mailto:` sem sublinhado.
   Quem é mencionado também entra como destinatário.
+- Para ser **menção de verdade** (e não só link), são necessárias duas coisas:
+  o link com `id="OWAAM<GUID em hex maiúsculo>"` e a mensagem criada na API **beta**
+  (`POST /beta/me/messages`) com a lista `mentions`, enviada depois com `/send`.
+  O `ferramentas/graph_email.py` já faz isso.
+- No `style`, escrever a fonte com aspas simples (`font-family:'Century Gothic',sans-serif`);
+  aspas duplas quebram o atributo e a fonte some.
 - **Uma linha em branco entre cada parágrafo** (inclusive após a menção e entre tópicos).
 - Frases curtas e diretas. Rótulos em negrito no início do parágrafo quando ajudam
   (ex.: **Tese:**, **Números:**, **Chance:**).

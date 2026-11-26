@@ -12,10 +12,10 @@ Uso como módulo:
 Credenciais: variáveis MS_GRAPH_CLIENT_ID, MS_GRAPH_TENANT_ID e
 MS_GRAPH_REFRESH_TOKEN do ambiente de nuvem. Nunca imprimir os valores.
 """
-import base64, html, json, os, urllib.parse, urllib.request
+import base64, html, json, os, urllib.parse, urllib.request, uuid
 
 ASSINATURA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assinatura.png")
-FONTE = 'font-family:"Century Gothic",sans-serif'
+FONTE = "font-family:'Century Gothic',sans-serif"
 CID = "assinatura_raa"
 
 
@@ -33,6 +33,7 @@ def token():
 
 def call(method, path, body=None, tk=None):
     url = path if path.startswith("http") else "https://graph.microsoft.com/v1.0" + path.replace(" ", "%20")
+    url = urllib.parse.quote(url, safe=":/?&=$,()'\"%@+")
     req = urllib.request.Request(
         url, method=method,
         data=json.dumps(body).encode() if body is not None else None,
@@ -52,7 +53,9 @@ def _vazio():
 
 
 def mencao(nome, email):
-    return (f'<a href="mailto:{email}"><span style="{FONTE}; text-decoration:none">'
+    # o id "OWAAM" + GUID é o que faz o Outlook tratar o link como menção (@)
+    mid = "OWAAM" + uuid.uuid4().hex.upper()
+    return (f'<a id="{mid}" href="mailto:{email}"><span style="{FONTE}; text-decoration:none">'
             f'@{html.escape(nome)}</span></a>')
 
 
@@ -94,4 +97,11 @@ def enviar(para, assunto, paragrafos, mencoes=None, cc=None):
             "contentBytes": base64.b64encode(open(ASSINATURA, "rb").read()).decode(),
         }],
     }
-    return call("POST", "/me/sendMail", {"message": msg, "saveToSentItems": True})
+    if not mencoes:
+        return call("POST", "/me/sendMail", {"message": msg, "saveToSentItems": True})
+    # menção de verdade: cria o rascunho na API beta com a lista "mentions" e envia
+    msg["mentions"] = [{"mentioned": {"name": n, "address": e}} for n, e in mencoes]
+    tk = token()
+    beta = "https://graph.microsoft.com/beta"
+    _, rasc = call("POST", beta + "/me/messages", msg, tk)
+    return call("POST", f"{beta}/me/messages/{rasc['id']}/send", None, tk)
