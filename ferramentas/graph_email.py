@@ -14,7 +14,7 @@ Uso como módulo:
 Credenciais: variáveis MS_GRAPH_CLIENT_ID, MS_GRAPH_TENANT_ID e
 MS_GRAPH_REFRESH_TOKEN do ambiente de nuvem. Nunca imprimir os valores.
 """
-import base64, html, json, os, urllib.parse, urllib.request, uuid
+import base64, html, json, os, re, urllib.parse, urllib.request, uuid
 
 ASSINATURA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assinatura.png")
 FONTE = "font-family:'Century Gothic',sans-serif"
@@ -139,3 +139,64 @@ def enviar(para, assunto, paragrafos, mencoes=None, cc=None):
     beta = "https://graph.microsoft.com/beta"
     _, rasc = call("POST", beta + "/me/messages", msg, tk)
     return call("POST", f"{beta}/me/messages/{rasc['id']}/send", None, tk)
+
+
+_DIAS = ["segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado", "domingo"]
+_MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto",
+          "setembro", "outubro", "novembro", "dezembro"]
+
+
+def _cabecalho_pt(corpo, enviado_utc):
+    """Troca o cabeçalho em inglês do Graph (From/Sent/To/Cc/Subject) pelo do Outlook
+    em português (De/Enviada em/Para/Cc/Assunto), com horário de Fortaleza (UTC-3)."""
+    import datetime
+    dt = datetime.datetime.fromisoformat(enviado_utc.replace("Z", "+00:00")) - datetime.timedelta(hours=3)
+    data = f"{_DIAS[dt.weekday()]}, {dt.day} de {_MESES[dt.month - 1]} de {dt.year} {dt:%H:%M}"
+    corpo = re.sub(r"<b>Sent:</b>[^<]*", f"<b>Enviada em:</b> {data}", corpo, count=1)
+    for en, pt in (("From:", "De:"), ("To:", "Para:"), ("Subject:", "Assunto:")):
+        corpo = corpo.replace(f"<b>{en}</b>", f"<b>{pt}</b>", 1)
+    return corpo
+
+
+def _anexo_assinatura():
+    return {
+        "@odata.type": "#microsoft.graph.fileAttachment",
+        "name": "assinatura.png", "contentType": "image/png",
+        "contentId": CID, "isInline": True,
+        "contentBytes": base64.b64encode(open(ASSINATURA, "rb").read()).decode(),
+    }
+
+
+def rascunho_encaminhar(message_id, para, paragrafos, mencoes=None, cc=None):
+    """Cria (sem enviar) o encaminhamento de uma mensagem, no padrão do Daniel.
+
+    Mantém o histórico e os anexos originais; o texto novo vai acima, com assinatura.
+    Retorna o id do rascunho. Para enviar: enviar_rascunho(id).
+    """
+    def rec(lista):
+        return [{"emailAddress": {"name": n, "address": e}} for n, e in (lista or [])]
+    para = list(para) + [m for m in (mencoes or []) if m[1] not in {e for _, e in para}]
+    tk = token()
+    beta = "https://graph.microsoft.com/beta"
+    msg = {"toRecipients": rec(para), "ccRecipients": rec(cc)}
+    if mencoes:
+        msg["mentions"] = [{"mentioned": {"name": n, "address": e}} for n, e in mencoes]
+    _, rasc = call("POST", f"{beta}/me/messages/{message_id}/createForward", {"message": msg}, tk)
+    rid = rasc["id"]
+    original = rasc["body"]["content"]
+    novo = corpo_html(paragrafos, mencoes)
+    trecho = novo[novo.index('<div class="WordSection1">') + len('<div class="WordSection1">'):novo.rindex("</div></body>")]
+    trecho += '<p class="MsoNormal" style="margin:0cm">&nbsp;</p>'
+    i = original.find(">", original.find("<body")) + 1
+    corpo = original[:i] + ESTILO + trecho + original[i:]
+    _, orig = call("GET", f"{beta}/me/messages/{message_id}?$select=subject,sentDateTime", None, tk)
+    corpo = _cabecalho_pt(corpo, orig["sentDateTime"])
+    assunto = "ENC: " + orig["subject"]  # padrão do Outlook em português (não "FW:")
+    call("PATCH", f"{beta}/me/messages/{rid}",
+         {"subject": assunto, "body": {"contentType": "HTML", "content": corpo}}, tk)
+    call("POST", f"{beta}/me/messages/{rid}/attachments", _anexo_assinatura(), tk)
+    return rid
+
+
+def enviar_rascunho(rid):
+    return call("POST", f"https://graph.microsoft.com/beta/me/messages/{rid}/send")

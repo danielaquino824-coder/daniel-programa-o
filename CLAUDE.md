@@ -46,6 +46,10 @@ Tirado dos e-mails que o Daniel envia pelo Outlook:
 - Tratamento "o senhor" para sócios/superiores quando for o caso.
 - Fecho: `Atenciosamente,` + linha em branco + assinatura.
 - Assunto de resposta/encaminhamento no padrão do Outlook em português: `RES:` e `ENC:`.
+- **Encaminhar:** `rascunho_encaminhar(id, para, paragrafos, mencoes)` cria o rascunho
+  (com histórico e anexos originais, assunto `ENC: <assunto original>` e cabeçalho em
+  português: De / Enviada em / Para / Cc / Assunto, horário de Fortaleza); depois
+  `enviar_rascunho(id)`.
 
 ## Assinatura
 
